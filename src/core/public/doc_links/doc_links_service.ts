@@ -32,7 +32,7 @@ import { deepFreeze } from '@osd/std';
 import { parse } from 'semver';
 import { InjectedMetadataSetup } from '../injected_metadata';
 
-interface StartDeps {
+export interface StartDeps {
   injectedMetadata: InjectedMetadataSetup;
 }
 
@@ -423,6 +423,10 @@ export class DocLinksService {
           visualize: {
             // https://opensearch.org/docs/latest/dashboards/visualize/viz-index/
             guide: `${OPENSEARCH_WEBSITE_DOCS}visualize/viz-index/`,
+          },
+          management: {
+            // https://opensearch.org/docs/latest/dashboards/management/advanced-settings/
+            advancedSettings: `${OPENSEARCH_DASHBOARDS_VERSIONED_DOCS}management/advanced-settings/`,
           },
         },
         noDocumentation: {
@@ -819,6 +823,7 @@ export interface DocLinksStart {
         readonly guide: string;
       };
       readonly visualize: Record<string, string>;
+      readonly management: Record<string, string>;
     };
     readonly noDocumentation: {
       readonly auditbeat: string;

@@ -25,6 +25,11 @@ This guide applies to all development within the OpenSearch Dashboards project a
   - [TypeScript/JavaScript](#typescriptjavascript)
   - [React](#react)
   - [API endpoints](#api-endpoints)
+- [Submit pull request](#submit-pull-request)
+  - [Before submit pull request](#before-submit-a-pull-request)
+  - [Best practices for pull request](#best-practices-for-pull-request)
+
+> To view these docs and all the readme's in this repository as webpages, visit https://opensearch-project.github.io/OpenSearch-Dashboards/docs/index.html#/
 
 ## Getting started guide
 
@@ -179,6 +184,7 @@ For windows:
 $ wsl -d docker-desktop
 $ sysctl -w vm.max_map_count=262144
 ```
+
 ### Next Steps
 
 Now that you have a development environment to play with, there are a number of different paths you may take next.
@@ -235,6 +241,7 @@ $ yarn opensearch snapshot --P https://repo1.maven.org/maven2/org/opensearch/plu
 Note - if you add the [`security` plugin](https://github.com/opensearch-project/security), you'll also need to [configure OpenSearch Dashboards for security](#configure-opensearch-dashboards-for-security).
 
 ### Plugin development
+
 The osd-plugin-generator tool makes it easier to create a plugin for OpenSearch Dashboards. It sets up the basic structure of the project and provides scripts to build it. Refer to [osd-plugin-generator](https://github.com/opensearch-project/OpenSearch-Dashboards/tree/main/packages/osd-plugin-generator) for more details.
 
 #### Other snapshot configuration options
@@ -252,10 +259,11 @@ Options:
       -E                Additional key=value settings to pass to OpenSearch
       --download-only   Download the snapshot but don't actually start it
       --ssl             Sets up SSL on OpenSearch
+      --security        Installs and sets up OpenSearch Security plugin on the cluster
       --P               OpenSearch plugin artifact URL to install it on the cluster.
 
 ```bash
-$ yarn opensearch snapshot --version 2.2.0 -E cluster.name=test -E path.data=/tmp/opensearch-data --P org.opensearch.plugin:test-plugin:2.2.0.0 --P file:/home/user/opensearch-test-plugin-2.2.0.0.zip
+$ yarn opensearch snapshot --version 2.2.0 -E cluster.name=test -E path.data=/tmp/opensearch-data --P org.opensearch.plugin:test-plugin:2.2.0.0 --P file:/home/user/opensearch-test-plugin-2.2.0.0.zip --security
 ```
 
 #### Read Only capabilities
@@ -279,17 +287,26 @@ This method can also be used to develop against the [full distribution of OpenSe
 
 ### Configure OpenSearch Dashboards for security
 
-_This step is only mandatory if you have the [`security` plugin](https://github.com/opensearch-project/security) installed on your OpenSearch cluster with https/authentication enabled._
+_This step is only needed if you want your dev environment to also start with security. To do so both the OpenSearch node and OpenSearch Dashboards cluster need to have the security plugin installed. Follow the steps below to get setup correctly._
 
-Once the bootstrap of OpenSearch Dashboards is finished, you need to apply some
-changes to the default [`opensearch_dashboards.yml`](https://github.com/opensearch-project/OpenSearch-Dashboards/blob/main/config/opensearch_dashboards.yml#L25-L72) in order to connect to OpenSearch.
+To startup the OpenSearch snapshot with security
 
-```yml
-opensearch.hosts: ["https://localhost:9200"]
-opensearch.username: "admin" # Default username on the docker image
-opensearch.password: "admin" # Default password on the docker image
-opensearch.ssl.verificationMode: none
-```
+> OpenSearch has strong password requirements and will fail to bootstrap if the password requirements are not met. e.g. myStrongPassword123!
+
+1. Run `export OPENSEARCH_INITIAL_ADMIN_PASSWORD=<initial admin password>` since it's needed by the configuration script
+2. Run `yarn opensearch snapshot --security`
+3. Wait a few seconds while the plugin is installed, configured, and OpenSearch starts up.
+
+Then within another window you can start OpenSearch Dashboards:
+
+_First make sure to clone the https://github.com/opensearch-project/security-dashboards-plugin repo into the plugins folder and build it (Using `yarn build`). You can follow the instructions here https://github.com/opensearch-project/security-dashboards-plugin/blob/main/DEVELOPER_GUIDE.md#install-opensearch-dashboards-with-security-dashboards-plugin._
+
+> You do not have to edit the `config/opensearch-dashboards.yml` file since the `yarn start:security` command sets up the default overrides automatically
+
+Then do the following:
+
+1. Run `yarn start:security`
+2. Navigate to OpenSearch Dashboards and login with the username `admin` and password `<initial admin password>`.
 
 For more detailed documentation, see [Configure TLS for OpenSearch Dashboards](https://opensearch.org/docs/latest/install-and-configure/install-dashboards/tls).
 
@@ -661,6 +678,42 @@ if (width < 300) {
 }
 ```
 
+#### Avoid using `var` to declare variables
+Use `const` by default, and never use `var` to declare variables. `const` and `let` are block scoped, like variables in most other languages. `var` in JavaScript is function scoped, which can cause difficult to understand bugs. 
+
+#### Avoid using the `Array` constructor
+Do not use the Array() constructor, with or without new. It has confusing and contradictory usage. 
+
+Instead, always use bracket notation to initialize arrays.
+
+```js
+// good
+const arr = [2];
+
+// bad
+const arr = new Array(2); //[undefined, undefined]
+const arr = new Array(2, 3); //[2, 3];
+```
+
+#### Avoid line continuations in string literals
+Do not use line continuations (that is, ending a line inside a string literal with a backslash) in either ordinary or template string literals. Even though ES5 allows this, it can lead to tricky errors if any trailing whitespace comes after the slash, and is less obvious to readers.
+
+```js
+// good
+const LONG_STRING = 'This is a very very very very very very long string. ' +
+    'It does not contain long stretches of spaces because it uses ' +
+    'concatenated strings.';
+
+// bad
+const LONG_STRING = 'This is a very very very very very very very long string. \
+    It inadvertently contains long stretches of spaces due to how the \
+    continued lines are indented.';
+```
+
+#### Avoid using `@ts-ignore`
+Do not use @ts-ignore nor the variants @ts-expect-error or @ts-nocheck. They superficially seem to be an easy way to fix a compiler error, but in practice, a specific compiler error is often caused by a larger problem that can be fixed more directly.
+
+
 #### Use native ES2015 module syntax
 
 Module dependencies should be written using native ES2015 syntax wherever
@@ -924,6 +977,31 @@ Do not use setters, they cause more problems than they can solve.
 
 [sideeffect]: http://en.wikipedia.org/wiki/Side_effect_(computer_science)
 
+#### Use strict equality checks
+Use strict equality operators (===/!==) to compare the operands. The equality (==/!=) operator will try to convert and compare operands that are of different types causing unexpected behavior.
+
+#### Use uppercase for constants
+Constants should be declared in uppercase letters especially for primitives because they are truly immutable.
+
+
+#### Use named exports
+Use named exports instead of default exports. Default exports provide no canonical name, which makes central maintenance difficult with relatively little benefit to code owners, including potentially decreased readability.
+
+```js
+// good
+export class User { ... }
+
+// bad
+export default class User { ... }
+// why bad
+import User from './user';  // Legal.
+import Group from './user';  // Also legal.
+```
+
+#### Use single quotes for string literals
+Ordinary string literals are delimited with single quotes ('), rather than double quotes ("). If a string contains a single quote character, consider using a template string to avoid having to escape the quote.
+
+
 #### Attribution
 
 Parts of the JavaScript developer guide were initially forked from the
@@ -972,3 +1050,34 @@ POST /api/opensearch-dashboards/index_patterns
   ]
 }
 ```
+
+## Submit pull request
+### Before submit a pull request
+First-time contributors should head to the [contributing guide](https://github.com/opensearch-project/OpenSearch-Dashboards/blob/main/CONTRIBUTING.md) to get started.
+
+Make sure your pull request adheres to our [code guidelines](#code-guidelines). 
+
+Follow [testing guideline](https://github.com/opensearch-project/OpenSearch-Dashboards/blob/main/TESTING.md) about current tests in the repo, writing tests and running tests locally.
+
+
+### Best practices for pull request
+We deeply appreciate everyone who takes the time to make a contribution. We will review all contributions as quickly as possible. As a best practice, opening an issue and discussing your change before you make it is the best way to smooth the PR process. This will prevent a rejection because someone else is already working on the problem, or because the solution is incompatible with the architectural direction.
+
+In addition, below are a few best practices so your pull request gets reviewed quickly.
+
+#### Mark unfinished pull requests
+It's okay to submit a draft PR if you want to solicit reviews before the implementation of your pull request is complete. To do that, you may add a `WIP` or `[WIP]` prefix to your pull request title and [convert the PR to a draft](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/changing-the-stage-of-a-pull-request#converting-a-pull-request-to-a-draft)
+
+#### Clear title and description for pull request
+Make sure that the title of the PR is easy to understand about the intent, and it should not conflict with the PR description or the implementation. To help reviewers get better context of the PR, we suggest to have a clear summary of the intent of the change as well as detailed steps for the manual tests that have been performed for this PR. 
+
+#### Small pull request is better
+Small pull requests get reviewed faster and are more likely to be correct than big ones. Breaking your change into small pull requests while keep in mind that every pull request should be useful on its own.
+
+#### Check and fix tests
+The repository uses codecov to gather coverage information, contributors submitting pull requests to the codebase are required to ensure that their code changes include appropriate testing coverage. Very few pull requests can touch the code and NOT touch the tests. 
+
+If you don't know how to test a feature, please ask! Pull requests lacking sufficient testing coverage may be subject to delays in review or rejection until adequate tests are provided.
+
+The repository has automated test workflows, and contributors submitting pull requests are required to check the failed test workflows and fix the tests related to their code change. If flaky test is identified, please ask a maintainer to retry the workflow. 
+
